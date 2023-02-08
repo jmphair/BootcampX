@@ -7,35 +7,31 @@ const pool = new Pool({
   database: 'bootcampx'
 });
 
-// MY ATTEMPT
-// Which actually did work as well!
-// pool.query(`
-// SELECT DISTINCT teachers.name as teacher, cohorts.name as cohort
-//   FROM teachers
-//   JOIN assistance_requests ON teacher_id = teachers.id
-//   JOIN students ON student_id = students.id
-//   JOIN cohorts ON cohort_id = cohorts.id
-//   WHERE cohorts.name LIKE '%${process.argv[2]}%'
-//   ORDER BY teacher;
-// `)
-// .then(res => {
-//   res.rows.forEach(user => {
-//     console.log(`${process.argv[2]}: ${user.teacher}`);
-//   })
-// }).catch(err => console.error('query error', err.stack));
+// From lecture can also do it without the slice(2) ---> [, , cohortName] = process.argv
+const [cohortName] = process.argv.slice(2);
 
-//CORRECT ANSWER
-pool.query(`
+const queryString = (`
 SELECT DISTINCT teachers.name as teacher, cohorts.name as cohort
 FROM teachers
 JOIN assistance_requests ON teacher_id = teachers.id
 JOIN students ON student_id = students.id
 JOIN cohorts ON cohort_id = cohorts.id
-WHERE cohorts.name = '${process.argv[2] || 'JUL02'}'
+WHERE cohorts.name = $1
 ORDER BY teacher;
 `)
-.then(res => {
-  res.rows.forEach(row => {
-    console.log(`${row.cohort}: ${row.teacher}`);
+
+// Can also do WHERE cohorts.name LIKE $1
+// Then change the below to [`%${cohortName}%`]
+// Makes it more similar to the way the search is happening in students.js
+
+const values = [cohortName];
+
+pool.connect() // first we connect (async)
+  .then(() => pool.query(queryString, values))
+  .then(res => {
+    res.rows.forEach(row => {
+      console.log(`${row.cohort}: ${row.teacher}`);
+    })
   })
-});
+  .catch(err => console.error('query error', err.stack))
+  .finally(() => pool.end()); // we CLOSE the connection with end.
